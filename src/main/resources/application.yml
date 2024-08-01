@@ -1,0 +1,99 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: egov-springcloud-gateway-1-k58dwvqrpv
+    version: v1
+    desc: egov-springcloud-gateway
+  rabbitmq:
+    host: ${MQ_HOST:localhost}
+    port: ${MQ_PORT:5672}
+    username: ${MQ_USERNAME:guest}
+    password: ${MQ_PASSWORD:guest}
+  zipkin:
+    base-url: http://${zipkin.hostname:localhost}:${zipkin.port:9411}
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=${SERVICE_PATH:}/user-service/**
+          filters:
+            - RemoveRequestHeader=Cookie
+            - RewritePath=${SERVICE_PATH:}/user-service/(?<segment>.*), /$\{segment}
+        - id: portal-service
+          uri: lb://PORTAL-SERVICE
+          predicates:
+            - Path=${SERVICE_PATH:}/portal-service/**
+          filters:
+            - RewritePath=${SERVICE_PATH:}/portal-service/(?<segment>.*), /$\{segment}
+        - id: board-service
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=${SERVICE_PATH:}/board-service/**
+          filters:
+            - RewritePath=${SERVICE_PATH:}/board-service/(?<segment>.*), /$\{segment}
+        - id: openapi
+          uri: http://localhost:${server.port}
+          predicates:
+            - Path=/v3/api-docs/**
+          filters:
+            - RewritePath=/v3/api-docs/(?<segment>.*), /$\{segment}/v3/api-docs
+      default-filters:
+        - name: GlobalFilter
+          args:
+            preLogger: true
+            postLogger: true
+      discovery:
+        locator:
+          enabled: true
+
+# config server actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: refresh, health, beans, info
+
+info:
+  app:
+    name: Spring Cloud Gateway
+    description: API 라우팅 및 보안, 모니터링/메트릭 등의 기능을 간단하고 효과적인 방법으로 제공
+  swagger-ui: /webjars/swagger-ui/index.html?configUrl=/v3/api-docs/swagger-config
+
+messages:
+  directory: ${user.dir}/msa-attach-volume/messages
+
+# 2시간(7,200,000), 1일(86,400,000) jwt token
+token:
+  expiration_time: 7200000
+  refresh_time: 86400000
+  secret: egovframe_user_token
+service-path: ${SERVICE_PATH:}
+springdoc:
+  swagger-ui:
+    path: ${SERVICE_PATH:}/swagger-ui.html
+eureka:
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}} # random port 사용시 eureka server에 인스턴스가 각각 표시되지 않는다
+    preferIpAddress: true # 서비스간 통신 시 hostname 보다 ip 를 우선
+  client:
+    register-with-eureka: true # eureka 서버에 등록
+    fetch-registry: true # 외부 검색 가능
+    service-url:
+      defaultZone: http://admin:admin@${eureka.instance.hostname:localhost}:8761/eureka
+
+# file attach location - messages{lang}.properties 도 이 경로에 위치한다.
+file:
+  directory: ${app.home:${user.home}}/msa-attach-volume # url 사용시에는 사용되지 않는다
+  url: http://${file.hostname:localhost}:8080 # nginx 로 파일 다운로드 처리
+
+apigateway:
+  host: http://${apigateway.hostname:localhost}
+
+egov:
+  message: hello
+
+
